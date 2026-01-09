@@ -868,7 +868,7 @@ def java_data_dependence_graph(CFG, CCG):
     return
 
 
-def _get_ts_language(lang_name: str) -> Language:
+def _get_ts_language(lang_name: str) -> TSLanguage:
     """
     New Tree-sitter API: load prebuilt language wheel.
     """
