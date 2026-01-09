@@ -424,13 +424,30 @@ def java_control_dependence_graph(root_node, CCG, src_lines, parent):
                              useSet=set())
                 CCG.add_edge(parent, node_id, 'CDG')
                 parent = node_id
+    # elif root_node.type in ['while_statement', 'for_statement']:
+    #     if root_node.type == 'for_statement':
+    #         start_row = root_node.start_point[0]
+    #         end_row = root_node.child_by_field_name('right').end_point[0]
+    #     if root_node.type == 'while_statement':
+    #         start_row = root_node.start_point[0]
+    #         end_row = root_node.child_by_field_name('condition').end_point[0]
+
     elif root_node.type in ['while_statement', 'for_statement']:
-        if root_node.type == 'for_statement':
-            start_row = root_node.start_point[0]
-            end_row = root_node.child_by_field_name('right').end_point[0]
-        if root_node.type == 'while_statement':
-            start_row = root_node.start_point[0]
-            end_row = root_node.child_by_field_name('condition').end_point[0]
+    start_row = root_node.start_point[0]
+
+    if root_node.type == 'for_statement':
+        # tree-sitter-java 的 for_statement 没有 'right' 字段
+        # 常见字段是 init / condition / update（有些可能为 None，比如 for(;;)）
+        header_end = (
+            root_node.child_by_field_name('update')
+            or root_node.child_by_field_name('condition')
+            or root_node.child_by_field_name('init')
+        )
+        end_row = header_end.end_point[0] if header_end is not None else root_node.end_point[0]
+
+    else:  # while_statement
+        cond = root_node.child_by_field_name('condition')
+        end_row = cond.end_point[0] if cond is not None else root_node.end_point[0]
         if parent is None:
             CCG.add_node(node_id, nodeType=root_node.type,
                          startRow=start_row, endRow=end_row,
