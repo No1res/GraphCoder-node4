@@ -1,6 +1,6 @@
 import networkx as nx
 from utils.utils import CONSTANTS
-from tree_sitter import TSLanguage as TSLanguage, Parser as TSParser
+from tree_sitter import Language as TSLanguage, Parser as TSParser
 
 def _coerce_ts_language(obj) -> TSLanguage:
     """
