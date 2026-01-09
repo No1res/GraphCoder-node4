@@ -10,36 +10,47 @@ def resolve_repo_file_path(repo_base_dir: str, repo_id: str, fpath_tuple):
     """
     Resolve real file path under repo_base_dir for different repo folder layouts.
 
-    Expected logical path:
-      fpath_tuple like: (repo_id, "path", "to", "file.ext")
-    But actual layout could be:
-      1) repo_id/<...>                       (normal)
-      2) repo_id/repo_id/<...>               (double nesting)
-      3) repo_id/<repo_id_suffix>/<...>      (underscore suffix nesting, e.g. apple_axlearn/axlearn)
+    fpath_tuple can start with:
+      A) [repo_id, ...]
+      B) [owner, repo, ...] where f"{owner}_{repo}" == repo_id
+
+    Actual repo root may be:
+      1) repo_id/
+      2) repo_id/repo_id/
+      3) repo_id/<suffix>/               (suffix = part after '_' in repo_id, or repo name in owner/repo)
+      4) repo_id/<suffix>/<suffix>/      (double nesting)
     """
     repo_base_dir = os.path.abspath(repo_base_dir)
-
-    parts = list(fpath_tuple)
+    parts = list(fpath_tuple) if fpath_tuple else []
     if not parts:
         return None
 
-    # Prefer treating tuple as (repo_id, relpath...)
+    # Decide how many leading components to strip from fpath_tuple
+    strip = 0
     if parts[0] == repo_id:
-        rel_parts = parts[1:]
-    else:
-        # fallback: treat whole tuple as relative path under the repo root
-        rel_parts = parts
+        strip = 1
+    elif len(parts) >= 2 and f"{parts[0]}_{parts[1]}" == repo_id:
+        strip = 2
 
+    rel_parts = parts[strip:]
     rel_path = os.path.join(*rel_parts) if rel_parts else ""
+
+    # Determine possible inner root name (suffix)
+    suffix = None
+    if "_" in repo_id:
+        suffix = repo_id.split("_", 1)[1]
+    # If owner/repo form, the repo name is parts[1]
+    if len(parts) >= 2 and f"{parts[0]}_{parts[1]}" == repo_id:
+        suffix = parts[1]
 
     # Candidate repo roots
     roots = []
-    roots.append(os.path.join(repo_base_dir, repo_id))                 # ./repositories/<repo_id>/
-    roots.append(os.path.join(repo_base_dir, repo_id, repo_id))        # ./repositories/<repo_id>/<repo_id>/
+    roots.append(os.path.join(repo_base_dir, repo_id))                    # ./repositories/<repo_id>/
+    roots.append(os.path.join(repo_base_dir, repo_id, repo_id))           # ./repositories/<repo_id>/<repo_id>/
 
-    if "_" in repo_id:
-        suffix = repo_id.split("_", 1)[1]                              # e.g. apple_axlearn -> axlearn
-        roots.append(os.path.join(repo_base_dir, repo_id, suffix))     # ./repositories/<repo_id>/<suffix>/
+    if suffix:
+        roots.append(os.path.join(repo_base_dir, repo_id, suffix))        # ./repositories/<repo_id>/<suffix>/
+        roots.append(os.path.join(repo_base_dir, repo_id, suffix, suffix))# ./repositories/<repo_id>/<suffix>/<suffix>/
 
     # Try candidates
     for r in roots:
