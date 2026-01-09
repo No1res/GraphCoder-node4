@@ -69,7 +69,7 @@ def build_query_subgraph(task_name):
     with tqdm(total=len(test_cases)) as pbar:
         for case in test_cases:
             # read full query context
-            case_path = os.path.join(*case['metadata']['fpath_tuple'])
+            fpath_tuple = case['metadata']['fpath_tuple']
             line_no = case['metadata']['line_no']
             case_id = case['metadata']['task_id'].split('/')[0]
 
