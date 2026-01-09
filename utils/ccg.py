@@ -1,12 +1,12 @@
 import networkx as nx
 from utils.utils import CONSTANTS
-from tree_sitter import Language as TSLanguage, Parser as TSParser
+from tree_sitter import TSLanguage as TSLanguage, Parser as TSParser
 
 def _coerce_ts_language(obj) -> TSLanguage:
     """
     Compatible across tree-sitter / language-wheel versions:
-    - some wheels return int (TSLanguage pointer) -> need Language(int)
-    - some wheels return Language object directly -> use as-is
+    - some wheels return int (TSLanguage pointer) -> need TSLanguage(int)
+    - some wheels return TSLanguage object directly -> use as-is
     """
     if isinstance(obj, TSLanguage):
         return obj
@@ -875,10 +875,10 @@ def _get_ts_language(lang_name: str) -> TSLanguage:
     lang_name = (lang_name or "").lower()
     if lang_name in ["py", "python"]:
         import tree_sitter_python as tspython
-        return Language(tspython.language())
+        return TSLanguage(tspython.language())
     if lang_name == "java":
         import tree_sitter_java as tsjava
-        return Language(tsjava.language())
+        return TSLanguage(tsjava.language())
     raise ValueError(f"Unsupported language: {lang_name}")
 
 
@@ -898,7 +898,7 @@ def create_graph(code_lines, repo_name):
     # ts_language = _get_ts_language(lang_name)
     ts_language = _get_ts_language(lang_name)
 
-    # Parser() 在不同版本里可能是 Parser(Language) 或 Parser().set_language(Language)
+    # Parser() 在不同版本里可能是 Parser(TSLanguage) 或 Parser().set_language(TSLanguage)
     try:
         parser = Parser(ts_language)
     except TypeError:
