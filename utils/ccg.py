@@ -566,20 +566,29 @@ def java_control_dependence_graph(root_node, CCG, src_lines, parent):
 def java_control_flow_graph(CCG):
     CFG = nx.MultiDiGraph()
 
-    next_sibling = dict()
-    first_children = dict()
+    # 先给所有节点一个默认 next_sibling=None，避免后面 KeyError
+    next_sibling = {v: None for v in CCG.nodes}
+    first_children = {}
 
-    start_nodes = []
-    for v in CCG.nodes:
-        if len(list(CCG.predecessors(v))) == 0:
-            start_nodes.append(v)
+    # 1) 空图：直接返回空 CFG
+    if len(CCG.nodes) == 0:
+        return CFG, []
+
+    # 2) 找“起始节点”（入度=0）
+    start_nodes = [v for v in CCG.nodes if CCG.in_degree(v) == 0]
     start_nodes.sort()
-    for i in range(0, len(start_nodes) - 1):
-        v = start_nodes[i]
-        u = start_nodes[i + 1]
-        next_sibling[v] = u
-    next_sibling[start_nodes[-1]] = None
 
+    # 3) 如果没有起始节点：说明图里形成了环 or 构图没有真正的根
+    #    兜底：把最小 node id 当作入口（node id 通常是 0..n-1）
+    if not start_nodes:
+        entry = min(CCG.nodes)
+        start_nodes = [entry]
+
+    # 4) 串起 start_nodes 的 next_sibling
+    for i in range(len(start_nodes) - 1):
+        next_sibling[start_nodes[i]] = start_nodes[i + 1]
+    next_sibling[start_nodes[-1]] = None
+    
     for v in CCG.nodes:
         children = list(CCG.neighbors(v))
         if len(children) != 0:
