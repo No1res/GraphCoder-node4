@@ -5,17 +5,6 @@ from tree_sitter import Language, Parser
 import tree_sitter_python as tspython
 import tree_sitter_java as tsjava
 
-PY_LANGUAGE = Language(tspython.language())
-JAVA_LANGUAGE = Language(tsjava.language())
-
-def get_language(lang_name: str) -> Language:
-    if lang_name.lower() == "python":
-        return PY_LANGUAGE
-    if lang_name.lower() == "java":
-        return JAVA_LANGUAGE
-    raise ValueError(f"Unsupported language: {lang_name}")
-
-language = get_language(lang_name)
 
 def python_control_dependence_graph(root_node, CCG, src_lines, parent):
     node_id = len(CCG.nodes)
@@ -702,6 +691,19 @@ def create_graph(code_lines, repo_name):
     if len(src_lines) != 0:
         src_lines[-1] = src_lines[-1].rstrip().strip('(').strip('[').strip(',')
     # Define tree-sitter parser
+
+    PY_LANGUAGE = Language(tspython.language())
+    JAVA_LANGUAGE = Language(tsjava.language())
+
+    def get_language(lang_name: str) -> Language:
+        if lang_name.lower() == "python":
+            return PY_LANGUAGE
+        if lang_name.lower() == "java":
+            return JAVA_LANGUAGE
+        raise ValueError(f"Unsupported language: {lang_name}")
+    
+    lang_name = CONSTANTS.repos_language[repo_name]
+    language = get_language(lang_name)
     parser = Parser(language)
 
     if len(src_lines) == 0:
