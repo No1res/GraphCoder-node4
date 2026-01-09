@@ -32,7 +32,7 @@ class GraphDatabaseBuilder:
                 file_num += 1
                 make_needed_dir(save_path)
                 with open(save_path, 'w') as f:
-                    f.write(json.dumps(json_graph.node_link_data(pdg), default=set_default))
+                    f.write(json.dumps(json_graph.node_link_data(ccg), default=set_default))
                 pbar.update(1)
         return
 
@@ -78,7 +78,7 @@ class GraphDatabaseBuilder:
                     repo_dict.append(curr_dict.copy())
                 pbar.update(1)
 
-        save_name = os.path.join(self.graph_database_save_dir, f"{repo}.jsonl")
+        save_name = os.path.join(self.graph_database_save_dir, f"{repo_name}.jsonl")
         make_needed_dir(save_name)
         dump_jsonl(repo_dict, save_name)
         return
