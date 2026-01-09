@@ -1,8 +1,6 @@
 import networkx as nx
 from tree_sitter import Language, Parser
 from utils.utils import CONSTANTS
-import tree_sitter_python
-import tree_sitter_java
 
 
 def python_control_dependence_graph(root_node, CCG, src_lines, parent):
@@ -690,22 +688,10 @@ def create_graph(code_lines, repo_name):
     if len(src_lines) != 0:
         src_lines[-1] = src_lines[-1].rstrip().strip('(').strip('[').strip(',')
     # Define tree-sitter parser
-    # 你原来 CONSTANTS.repos_language[repo_name] 可能返回 "python"/"java"
-    LANG_MAP = {
-        "python": Language(tree_sitter_python.language()),
-        "java": Language(tree_sitter_java.language()),
-    }
-
-    lang_name = CONSTANTS.repos_language[repo_name]   # e.g. "python" / "java"
-    language = LANG_MAP[lang_name]
-
+    Language.build_library('./my-languages.so', ['./tree-sitter-python', './tree-sitter-java'])
+    language = Language('./my-languages.so', CONSTANTS.repos_language[repo_name])
     parser = Parser()
-
-    # 兼容不同版本的写法（0.25.x 推荐 parser.language = ...）
-    try:
-        parser.language = language
-    except AttributeError:
-        parser.set_language(language)
+    parser.set_language(language)
 
     if len(src_lines) == 0:
         return None
