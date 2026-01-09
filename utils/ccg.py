@@ -711,9 +711,9 @@ def create_graph(code_lines, repo_name):
 
     # remove comment
     comment_prefix = ""
-    if language == "python":
+    if lang_name == "python":
         comment_prefix = "#"
-    elif language == "java":
+    elif lang_name == "java":
         comment_prefix = "//"
 
     comment_lines = []
@@ -741,7 +741,7 @@ def create_graph(code_lines, repo_name):
     # Initialize program dependence graph
     ccg = nx.MultiDiGraph()
 
-    if language == 'python':
+    if lang_name == "python":
         # Construct control dependence edge
         for child in tree.root_node.children:
             python_control_dependence_graph(child, ccg, code_lines, None)
@@ -753,7 +753,7 @@ def create_graph(code_lines, repo_name):
         python_data_dependence_graph(cfg, ccg)
 
         ccg.add_edges_from(cfg_edge_list)
-    elif language == "java":
+    elif lang_name == "java":
         # Construct control dependence edge
         for child in tree.root_node.children:
             java_control_dependence_graph(child, ccg, code_lines, None)
