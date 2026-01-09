@@ -1,7 +1,26 @@
 import networkx as nx
-from tree_sitter import Language, Parser
 from utils.utils import CONSTANTS
+from tree_sitter import Language as TSLanguage, Parser as TSParser
 
+def _coerce_ts_language(obj) -> TSLanguage:
+    """
+    Compatible across tree-sitter / language-wheel versions:
+    - some wheels return int (TSLanguage pointer) -> need Language(int)
+    - some wheels return Language object directly -> use as-is
+    """
+    if isinstance(obj, TSLanguage):
+        return obj
+    return TSLanguage(obj)
+
+def _get_ts_language(lang_name: str) -> TSLanguage:
+    lang_name = (lang_name or "").lower()
+    if lang_name in ["py", "python"]:
+        import tree_sitter_python as tspython
+        return _coerce_ts_language(tspython.language())
+    if lang_name == "java":
+        import tree_sitter_java as tsjava
+        return _coerce_ts_language(tsjava.language())
+    raise ValueError(f"Unsupported language: {lang_name}")
 
 def python_control_dependence_graph(root_node, CCG, src_lines, parent):
     node_id = len(CCG.nodes)
@@ -876,10 +895,22 @@ def create_graph(code_lines, repo_name):
 
     # NEW: no build_library / .so
     lang_name = CONSTANTS.repos_language[repo_name]
+    # ts_language = _get_ts_language(lang_name)
     ts_language = _get_ts_language(lang_name)
 
+    # Parser() 在不同版本里可能是 Parser(Language) 或 Parser().set_language(Language)
+    try:
+        parser = Parser(ts_language)
+    except TypeError:
+        parser = Parser()
+        parser.set_language(ts_language)
+
+    # parse 的签名也可能不同：有的版本支持 encoding 参数，有的不支持
+    try:
+        tree = parser.parse(read_callable, encoding="utf8")
+    except TypeError:
+        tree = parser.parse(read_callable)
     # NEW: parser constructed with language
-    parser = Parser(ts_language)
 
     # remove comment
     comment_prefix = "#"
