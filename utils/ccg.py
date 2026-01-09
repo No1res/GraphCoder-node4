@@ -424,6 +424,7 @@ def java_control_dependence_graph(root_node, CCG, src_lines, parent):
                              useSet=set())
                 CCG.add_edge(parent, node_id, 'CDG')
                 parent = node_id
+
     # elif root_node.type in ['while_statement', 'for_statement']:
     #     if root_node.type == 'for_statement':
     #         start_row = root_node.start_point[0]
@@ -431,8 +432,7 @@ def java_control_dependence_graph(root_node, CCG, src_lines, parent):
     #     if root_node.type == 'while_statement':
     #         start_row = root_node.start_point[0]
     #         end_row = root_node.child_by_field_name('condition').end_point[0]
-
-        elif root_node.type in ['while_statement', 'for_statement']:
+    elif root_node.type in ['while_statement', 'for_statement']:
         start_row = root_node.start_point[0]
 
         if root_node.type == 'for_statement':
