@@ -92,13 +92,12 @@ class CONSTANTS:
     query_graph_save_dir = "./graph_based_query"
     dataset_dir = "./RepoEval-Updated"
 
-    _RBD = repo_base_dir
-    # 自动枚举 repo 目录（owner---repo）
-    repos = sorted([
-        d for d in os.listdir(repo_base_dir)
-        if os.path.isdir(os.path.join(_RBD, d))
-        and not d.startswith(".")
-    ])
+    repos = []
+    for d in os.listdir(repo_base_dir):
+        p = os.path.join(repo_base_dir, d)
+        if os.path.isdir(p) and not d.startswith("."):
+            repos.append(d)
+    repos = sorted(repos)
 
     # 针对CoderEval全部标记为 python
     repos_language = {r: "python" for r in repos}
