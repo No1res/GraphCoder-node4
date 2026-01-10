@@ -88,15 +88,15 @@ class CONSTANTS:
     # CoderEval配置
     repo_base_dir = "/workspace/Projects/CERepos"
 
-    # 这些你可以保留相对路径（相对当前项目根目录）
     graph_database_save_dir = "./context_database"
     query_graph_save_dir = "./graph_based_query"
     dataset_dir = "./RepoEval-Updated"
 
+    _RBD = repo_base_dir
     # 自动枚举 repo 目录（owner---repo）
     repos = sorted([
         d for d in os.listdir(repo_base_dir)
-        if os.path.isdir(os.path.join(repo_base_dir, d))
+        if os.path.isdir(os.path.join(_RBD, d))
         and not d.startswith(".")
     ])
 
