@@ -61,7 +61,7 @@ class GraphDatabaseBuilder:
                 for v in ccg.nodes:
                     curr_dict = dict()
                     forward_context, forward_line, forward_graph = slicer.forward_dependency_slicing(v, ccg,
-                                                                                                     contain_node=False)
+                                                                                                     contain_node=True)
                     curr_dict['key_forward_graph'] = graph_to_json(forward_graph)
                     curr_dict['key_forward_context'] = forward_context
                     curr_dict['key_forward_encoding'] = tokenizer.tokenize(forward_context)
