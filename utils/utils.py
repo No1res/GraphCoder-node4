@@ -32,9 +32,9 @@ class StarCoderTokenizer:
 
 
 class CONSTANTS:
-    max_hop = 1000000100000000
-    max_search_top_k = 10000000100000000
-    max_statement = 10000000100000000
+    max_hop = 1000000
+    max_search_top_k = 10000000
+    max_statement = 10000000
     # repo_base_dir = f"./repositories"
     # graph_database_save_dir = f"./context_database"
     # query_graph_save_dir = "./graph_based_query"
