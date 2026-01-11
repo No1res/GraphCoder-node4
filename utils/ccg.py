@@ -2,25 +2,13 @@ import networkx as nx
 from tree_sitter import Language, Parser
 from utils.utils import CONSTANTS
 from tree_sitter import Language, Parser
-import tree_sitter_python as tspython
-import tree_sitter_java as tsjava
+# import tree_sitter_python as tspython
+# import tree_sitter_java as tsjava
+from tree_sitter import Parser
+# from tree_sitter_languages import get_language
+from tree_sitter_language_pack import get_parser, get_language
 
-# utils/ccg.py
-from tree_sitter import Language, Parser
-import tree_sitter_python as tspython
-
-def _load_ts_language(language_module):
-    """Compatible loader for tree-sitter language wheels across versions."""
-    lang = language_module.language()
-    # Some versions return a tree_sitter.Language directly.
-    if isinstance(lang, Language):
-        return lang
-    # Others return a capsule/pointer that needs wrapping.
-    return Language(lang)
-
-PY_LANGUAGE = _load_ts_language(tspython)
-JAVA_LANGUAGE = _load_ts_language(tsjava)
-
+# parser = get_parser("python")
 
 
 def python_control_dependence_graph(root_node, CCG, src_lines, parent):
@@ -736,19 +724,25 @@ def create_graph(code_lines, repo_name):
         src_lines[-1] = src_lines[-1].rstrip().strip('(').strip('[').strip(',')
     # Define tree-sitter parser
 
-    # PY_LANGUAGE = Language(tspython.language())
-    # JAVA_LANGUAGE = Language(tsjava.language())
+    # PY_LANGUAGE = tspython.language()
+    # JAVA_LANGUAGE = tsjava.language()
 
-    def get_language(lang_name: str) -> Language:
-        if lang_name.lower() == "python":
-            return PY_LANGUAGE
-        if lang_name.lower() == "java":
-            return JAVA_LANGUAGE
-        raise ValueError(f"Unsupported language: {lang_name}")
-    
+    # def get_language(lang_name: str) -> Language:
+    #     if lang_name.lower() == "python":
+    #         return PY_LANGUAGE
+    #     if lang_name.lower() == "java":
+    #         return JAVA_LANGUAGE
+    #     raise ValueError(f"Unsupported language: {lang_name}")
+
+    # lang_name = CONSTANTS.repos_language[repo_name]
+    # language = get_language(lang_name)
+    # parser = Parser(language)
+
+
     lang_name = CONSTANTS.repos_language[repo_name]
     language = get_language(lang_name)
     parser = Parser(language)
+    # parser.set_language(language)
 
     if len(src_lines) == 0:
         return None
