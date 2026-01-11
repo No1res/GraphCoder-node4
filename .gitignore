@@ -1,8 +1,0 @@
-readme.md
-.DS_Store
-context_database/
-utils/__pycache__/
-tree-sitter-java/
-tree-sitter-python/
-repositories/
-RepoEval-Updated/
