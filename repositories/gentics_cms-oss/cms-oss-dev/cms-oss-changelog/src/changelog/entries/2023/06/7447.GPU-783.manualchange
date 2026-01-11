@@ -1,1 +1,0 @@
-Support for encoding in XML has been dropped for the REST API. Requests and responses have to be encoded in JSON format.

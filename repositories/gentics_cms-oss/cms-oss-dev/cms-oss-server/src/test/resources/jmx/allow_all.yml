@@ -1,4 +1,0 @@
-config:
-  accesscontrol:
-    default:
-      secured: false
