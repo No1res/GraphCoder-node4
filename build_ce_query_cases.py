@@ -1,7 +1,7 @@
 import os
 import json
+import argparse
 from tqdm import tqdm
-
 import networkx as nx
 
 from utils.utils import CONSTANTS, CodexTokenizer, make_needed_dir, dump_jsonl, graph_to_json
@@ -9,9 +9,9 @@ from utils.ccg import create_graph
 from utils.slicing import Slicing
 
 
-CE_QUERY_JSONL = "/workspace/Projects/CoderEval/CoderEval-Input4Models/CEPythonHumanLabel.jsonl"
-RAW_DATASET_JSON = "/workspace/Projects/CoderEval/CoderEval4Python.json"
-OUTPUT_NAME = "CErepos_graphcoder_query.jsonl"
+DEFAULT_CE_QUERY_JSONL = "/workspace/Projects/CoderEval/CoderEval-Input4Models/CEPythonHumanLabel.jsonl"
+DEFAULT_RAW_DATASET_JSON = "/workspace/Projects/CoderEval/CoderEval4Python.json"
+DEFAULT_OUTPUT_NAME = "CErepos_graphcoder_query.jsonl"
 
 
 def project_to_repo_id(project: str) -> str:
@@ -25,8 +25,15 @@ def build_stub(signature: str, human_label: str) -> str:
         sig = "def " + sig
     if not sig.endswith(":"):
         sig += ":"
+
     doc = (human_label or "").replace('"""', "'''").strip()
-    return f"{sig}\n" f'    """{doc}"""\n' f"    pass\n"
+
+    # 保证 query 文本只来自 signature + human_label
+    return (
+        f"{sig}\n"
+        f'    """{doc}"""\n'
+        f"    pass\n"
+    )
 
 
 def pick_anchor_node_id(ccg: nx.MultiDiGraph, signature: str):
@@ -75,8 +82,8 @@ def load_raw_records(raw_json_path: str):
 def _should_use_sliced_context(stub: str, human_label: str, qctx: str) -> bool:
     """
     Decide whether to replace stub with sliced context.
-    We must ensure query_forward_context remains derived from signature + human_label,
-    so only use qctx if it still contains the human_label (or at least most of it).
+    MUST ensure query_forward_context remains derived from signature + human_label,
+    so only use qctx if it still contains the human_label and isn't too short.
     """
     if qctx is None:
         return False
@@ -84,36 +91,51 @@ def _should_use_sliced_context(stub: str, human_label: str, qctx: str) -> bool:
     if qctx_str == "":
         return False
 
-    # if human_label exists, qctx should contain it; otherwise qctx might drop it and become too weak
     hl = (human_label or "").strip()
-    if hl:
-        # case-insensitive containment check
-        if hl.lower() not in qctx_str.lower():
-            return False
+    if hl and (hl.lower() not in qctx_str.lower()):
+        return False
 
-    # additionally: avoid replacing with extremely short contexts
-    # (e.g., only "def ...:\n")
+    # avoid replacing with extremely short contexts (e.g., only def line)
     if len(qctx_str) < min(40, len(stub.strip())):
         return False
 
     return True
 
 
+def iter_jsonl(path: str):
+    """Yield parsed JSON objects from a jsonl file; skip empty/bad lines."""
+    with open(path, "r", encoding="utf-8") as f:
+        for raw_line in f:
+            line = raw_line.strip()
+            if not line:
+                continue
+            try:
+                yield json.loads(line), None
+            except Exception as e:
+                yield None, e
+
+
 def main(
-    ce_query_jsonl: str = CE_QUERY_JSONL,
-    raw_dataset_json: str = RAW_DATASET_JSON,
-    output_name: str = OUTPUT_NAME,
+    ce_query_jsonl: str,
+    raw_dataset_json: str,
+    output_name: str,
     include_query_graph: bool = True,
 ):
+    # sanity checks
+    if not os.path.exists(ce_query_jsonl):
+        raise FileNotFoundError(f"CE query jsonl not found: {ce_query_jsonl}")
+    if not os.path.exists(raw_dataset_json):
+        raise FileNotFoundError(f"Raw dataset json not found: {raw_dataset_json}")
+
     id2rec = load_raw_records(raw_dataset_json)
 
     tokenizer = CodexTokenizer()
     slicer = Slicing()
-
     out = []
 
     # stats
     n_total = 0
+    n_bad_json = 0
     n_id_miss = 0
     n_repo_db_miss = 0
     n_graph_none = 0
@@ -123,15 +145,18 @@ def main(
     n_ctx_fallback = 0
     n_ok = 0
 
-    with open(ce_query_jsonl, "r", encoding="utf-8") as f:
-        lines = f.readlines()
+    # We don't know total lines easily without a pass; tqdm without total is OK
+    pbar = tqdm(desc="Build query-cases")
 
-    for line in tqdm(lines, total=len(lines), desc="Build query-cases"):
-        line = line.strip()
-        if not line:
+    for obj, err in iter_jsonl(ce_query_jsonl):
+        pbar.update(1)
+
+        if err is not None:
+            n_bad_json += 1
             continue
+
         n_total += 1
-        q = json.loads(line)
+        q = obj
 
         qid = str(q.get("question_id", "")).strip()
         if not qid:
@@ -146,7 +171,7 @@ def main(
         project = raw_rec.get("project", "")
         repo_id = project_to_repo_id(project)
 
-        # 只对本地存在的图数据库 repo 生成 query-case
+        # Only generate query-case if repo db exists
         repo_db_path = os.path.join(CONSTANTS.graph_database_save_dir, f"{repo_id}.jsonl")
         if not os.path.exists(repo_db_path):
             n_repo_db_miss += 1
@@ -155,11 +180,11 @@ def main(
         signature = (q.get("signature", "") or "").strip()
         human_label = (q.get("docstring", "") or "").strip()
 
-        # query_forward_context：只由 signature + human_label 构造（作为保底）
+        # base stub context (guaranteed to contain human_label)
         stub = build_stub(signature, human_label)
         stub_lines = stub.splitlines(keepends=True)
 
-        query_forward_context = stub  # ✅ 默认一定含 human_label
+        query_forward_context = stub
         query_forward_graph = None
         forward_context_line_list = []
 
@@ -183,37 +208,32 @@ def main(
                             anchor, ccg, contain_node=True
                         )
 
-                        # ✅ 无论如何，只要图有效就保存图，用于 coarse2fine
+                        # save graph if valid
                         if qgraph is not None and qgraph.number_of_nodes() > 0:
                             query_forward_graph = graph_to_json(qgraph)
                             forward_context_line_list = qlines if qlines is not None else []
 
-                        # ✅ 只有当 sliced context 仍然包含 human_label 且不太短时，才用 qctx 覆盖 stub
+                        # IMPORTANT: keep query_forward_context derived from signature+human_label
                         if qctx and _should_use_sliced_context(stub, human_label, qctx):
                             query_forward_context = qctx
                         else:
-                            # fallback to stub to ensure human_label is present
                             n_ctx_fallback += 1
                             query_forward_context = stub
 
                     except Exception:
                         n_slice_fail += 1
-                        # slicing失败也不影响：query_forward_context 仍是 stub（含 human_label）
                         query_forward_context = stub
 
-        # 必须字段：query_forward_context / query_forward_encoding
         qcase = {
             "query_forward_context": query_forward_context,
             "query_forward_encoding": tokenizer.tokenize(query_forward_context),
-            # 可选字段：query_forward_graph（没有就留 None）
             "query_forward_graph": query_forward_graph,
             "metadata": {
-                # 用于 search_code.py 根据 repo 选择库：task_id.split('/')[0]
                 "task_id": f"{repo_id}/{qid}",
                 "repo_id": repo_id,
                 "project": project,
 
-                # 只用于过滤/评测（不进入模型输入）
+                # for leakage filtering / evaluation (not used as query)
                 "file_path": raw_rec.get("file_path", ""),
                 "lineno": raw_rec.get("lineno", ""),
                 "end_lineno": raw_rec.get("end_lineno", ""),
@@ -230,21 +250,45 @@ def main(
         out.append(qcase)
         n_ok += 1
 
+    pbar.close()
+
     save_path = os.path.join(CONSTANTS.query_graph_save_dir, output_name)
     make_needed_dir(save_path)
     dump_jsonl(out, save_path)
 
     print("\n[SUMMARY]")
-    print(f"input_lines={len(lines)} parsed_total={n_total}")
+    print(f"ce_query_jsonl: {ce_query_jsonl}")
+    print(f"raw_dataset_json: {raw_dataset_json}")
+    print(f"output: {save_path}")
+    print(f"parsed_total={n_total} bad_json_lines={n_bad_json}")
     print(f"raw_id_miss={n_id_miss} repo_db_miss={n_repo_db_miss}")
     print(
         f"graph_none={n_graph_none} graph_empty={n_graph_empty} "
         f"anchor_none={n_anchor_none} slice_fail={n_slice_fail} ctx_fallback={n_ctx_fallback}"
     )
-    print(f"saved={n_ok} -> {save_path}")
+    print(f"saved={n_ok}")
 
 
 if __name__ == "__main__":
-    # include_query_graph=True：会产出 query_forward_graph，后面可用于 coarse2fine
-    # 如果你想先跑最稳的 coarse 检索，把 include_query_graph 改成 False
-    main(include_query_graph=True)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--ce_query_jsonl", type=str, default=DEFAULT_CE_QUERY_JSONL)
+    parser.add_argument("--raw_dataset_json", type=str, default=DEFAULT_RAW_DATASET_JSON)
+    parser.add_argument("--output_name", type=str, default=DEFAULT_OUTPUT_NAME)
+    parser.add_argument("--include_query_graph", action="store_true", help="include query_forward_graph via create_graph+slicing")
+    parser.add_argument("--no_query_graph", action="store_true", help="force disable graph building (coarse only)")
+
+    args = parser.parse_args()
+
+    include_graph = True
+    if args.no_query_graph:
+        include_graph = False
+    elif args.include_query_graph:
+        include_graph = True
+    # default: include graph (与你之前一致)
+
+    main(
+        ce_query_jsonl=args.ce_query_jsonl,
+        raw_dataset_json=args.raw_dataset_json,
+        output_name=args.output_name,
+        include_query_graph=include_graph,
+    )
