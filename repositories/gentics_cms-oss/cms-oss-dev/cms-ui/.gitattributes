@@ -1,6 +1,0 @@
-* eol=lf
-*.png    binary
-*.woff  binary
-*.woff2 binary
-*.ttf   binary
-package-lock.json binary
