@@ -1,6 +1,0 @@
-@import "thumbnail-grid";
-
-:host {
-    display: block;
-    @include masonry-item;
-}
