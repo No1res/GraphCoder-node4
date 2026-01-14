@@ -67,8 +67,17 @@ class GraphDatabaseBuilder:
                     curr_dict['key_forward_encoding'] = tokenizer.tokenize(forward_context)
                     curr_dict['statement'] = "".join(ccg.nodes[v]['sourceLines'])
                     statement_line_row = ccg.nodes[v]['startRow']
-                    start_line_row = max(0, statement_line_row-11)
-                    end_line_row = min(statement_line_row+10, len(src_lines))
+
+
+                    ####### Set retrieval line to 20 lines, which is not suitable for 200k retrieval. #######
+                    # start_line_row = max(0, statement_line_row-11)
+                    # end_line_row = min(statement_line_row+10, len(src_lines))
+
+                    ####### Set retrieval line to 200 lines, which is suitable for 200k retrieval. #######
+                    start_line_row = max(0, statement_line_row-61)
+                    end_line_row = min(statement_line_row+60, len(src_lines))
+
+
                     curr_dict['val'] = "".join(src_lines[start_line_row:end_line_row])
                     curr_dict['fpath_tuple'] = file.split('/')[repo_base_dir_len:]
                     max_forward_line = 0
