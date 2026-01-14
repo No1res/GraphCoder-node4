@@ -85,8 +85,12 @@ class CONSTANTS:
     # }
     
     #############################################
-    # CoderEval配置
-    repo_base_dir = "/workspace/Projects/CERepos"
+    # node4 CoderEval配置
+    # repo_base_dir = "/workspace/Projects/CERepos"
+
+    # local仓库配置
+    repo_base_dir = "/Users/young/Desktop/CoderEval/CoderEval Docker/home/travis/builds/repos"
+
 
     graph_database_save_dir = "./context_database"
     query_graph_save_dir = "./graph_based_query"
